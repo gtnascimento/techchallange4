@@ -69,6 +69,25 @@ elif escolha == "Modelo preditivo":
   
     """)
 
+    st.header(':orange[[Atenção!]]')
+    st.write("""
+    O modelo pode apresentar algum erro para executar na web devido ao tamanho do arquivo arima.joblib.
+
+    Sabendo disso, deixamos abaixo o método para executar localmente.
+
+    1º Acesse link: https://github.com/gtnascimento/techchallange
+
+    2º Clique em <> Code e faça o download do arquivo .ZIP do projeto.
+
+    3º Extraia o arquivo e abra a pasta.
+
+    4º Execute o arquivo apptech.py (o mesmo será executado em seu editor de código).
+
+    5º No terminal do editor, digite "streamlit run apptech.py" (sem aspas).
+
+    6º O programa irá abrir localmente em seu navegador e desta forma todos os arquivos irão carregar normalmente.
+    """)
+
     # Carregar o modelo ARIMA salvo
     model = joblib.load("arima.joblib")
 
@@ -127,6 +146,7 @@ elif escolha == "Modelo preditivo":
 
     6º O programa irá abrir localmente em seu navegador e desta forma todos os arquivos irão carregar normalmente.
     """)
+
 
 
 elif escolha == "Análise":
