@@ -1,4 +1,8 @@
 import streamlit as st
+import pandas as pd
+import joblib
+import matplotlib.pyplot as plt
+from datetime import timedelta
 
 st.set_page_config(page_title="Data Analytics - Fase 4 Tech Challenge | FIAP", layout='wide')
 
@@ -19,7 +23,6 @@ st.sidebar.markdown("Gabriel Tomaz do Nascimento - RM356231")
 st.sidebar.markdown("Pedro Costa de Oliveira Neto - RM353263")
 st.sidebar.markdown("Thiago Aragão Barros - RM353723")
 
-# Mostra a seção selecionada
 if escolha == "Introdução":
     st.header(':orange[PÓS TECH – DATA ANALYTICS, 2024 - FIAP]')
     st.subheader(":orange[Fase 4 - Data Viz and Production Models]")
@@ -59,74 +62,53 @@ elif escolha == "Metodologia":
 elif escolha == "Modelo preditivo":
     st.header(':orange[🧠 MODELO DE MACHINE LEARNING]')
     st.write("""
-    Nesta seção, apresentamos um modelo preditivo para análise do preço do petróleo. O modelo utiliza técnicas de aprendizado de máquina para prever variações nos preços com base em dados históricos entre 1987 e 2024 do site Ipeadata.
+    Nesta seção, apresentamos um modelo preditivo para análise do preço do petróleo. O modelo utiliza técnicas de aprendizado de máquina para prever variações nos preços com base em dados históricos entre 1987 e 2024 do site Ipeadata. Treinamos o modelo com métricas ARIMA.
              
-    Utilizamos o modelo de Random Forest para criar realizar previsões de preços com base em variáveis como ano, mês, dia e preços anteriores.
+    Abaixo você poderá escolher a quantidade de dias para a previsão do preço. Limitamos em 10 dias para garantir uma melhor eficácia.
+            
   
     """)
 
-    # Carregando o modelo preditivo
-    import pandas as pd
-    import numpy as np
-    from sklearn.model_selection import train_test_split
-    from sklearn.ensemble import RandomForestRegressor
-    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    # Carregar o modelo ARIMA salvo
+    model = joblib.load("arima.joblib")
 
-    # Simulação de dados
-    np.random.seed(42)
-    dates = pd.date_range(start="1987-01-01", end="2024-12-31", freq="M")
-    prices = np.random.uniform(20, 120, len(dates))
-    data = pd.DataFrame({"Date": dates, "Price": prices})
+    st.subheader("Previsão com ARIMA")
 
-    # Adicionar features ao dataset
-    data['Year'] = data['Date'].dt.year
-    data['Month'] = data['Date'].dt.month
-    data['Day'] = data['Date'].dt.day
-    data['Lag1'] = data['Price'].shift(1)
-    data['Lag2'] = data['Price'].shift(2)
-    data.dropna(inplace=True)
+    # Carregar os dados
+    data_file_path = "precopetroleo.csv"
+    data = pd.read_csv(data_file_path, header=None, delimiter=";")
 
-    # Dividindo em treino e teste
-    X = data[['Year', 'Month', 'Day', 'Lag1', 'Lag2']]
-    y = data['Price']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Renomear as colunas para 'data' e 'valor'
+    data.columns = ['data', 'valor']
 
-    # Treinando o modelo
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+    # Converter a coluna 'data' para datetime
+    data['data'] = pd.to_datetime(data['data'])
 
-    # Fazendo previsões
-    predictions = model.predict(X_test)
+    # Definir a coluna 'data' como o índice
+    data.set_index('data', inplace=True)
 
-    # Métricas de desempenho
-    mae = mean_absolute_error(y_test, predictions)
-    mse = mean_squared_error(y_test, predictions)
-    r2 = r2_score(y_test, predictions)
+    # Previsões
+    forecast_steps = st.slider("Clique e arraste o mouse para prever o valor nos próximos dias", 1, 10, 10)
+    forecast = model.forecast(steps=forecast_steps)
 
-    # Exibindo as métricas no Streamlit
-    st.subheader("Desempenho do Modelo")
-    st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
-    st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
-    st.write(f"**R² Score:** {r2:.2f}")
+    # Definir a última data real como 21/11/2024
+    ultima_data_real = pd.Timestamp("2024-11-21")
+    datas_futuras = pd.date_range(start=ultima_data_real + timedelta(days=1), periods=forecast_steps, freq='B')
 
-    # Gráfico comparando valores reais e previstos
-    results = pd.DataFrame({"Real": y_test.values, "Previsto": predictions})
-    st.line_chart(results)
+    # Criar o DataFrame de previsão
+    arima_forecast_df = pd.DataFrame({'Data': datas_futuras, 'Previsao': forecast})
 
-    st.subheader("Previsão")
-    st.write("Insira os valores para fazer uma previsão.")
+    # Ajustar a coluna de data para exibir apenas a data
+    arima_forecast_df['Data'] = arima_forecast_df['Data'].dt.date
 
-    # Entrada de dados para previsão
-    year = st.number_input("Ano:", min_value=1987, max_value=2024, value=2024)
-    month = st.number_input("Mês:", min_value=1, max_value=12, value=1)
-    day = st.number_input("Dia:", min_value=1, max_value=31, value=1)
-    lag1 = st.number_input("Lag1 (Preço anterior):", value=100.0)
-    lag2 = st.number_input("Lag2 (Preço dois períodos atrás):", value=100.0)
+    # Renomear as colunas da tabela de previsões
+    arima_forecast_df.rename(columns={'Data': 'Data (Futura)', 'Previsao': 'Previsão (Valor)'}, inplace=True)
 
-    if st.button("Prever"):
-        input_data = np.array([[year, month, day, lag1, lag2]])
-        forecast = model.predict(input_data)[0]
-        st.write(f"**Preço previsto:** ${forecast:.2f}")
+    # Exibir a tabela com as colunas renomeadas
+    st.write(f"Previsão para os próximos {forecast_steps} dias:", arima_forecast_df)
+
+    st.write("Link do colab com o modelo completo https://drive.google.com/file/d/14QrBM1iNg5gBGcYCUcuw3rCLE0_cCQnu/view?usp=sharing ")
+
 
 
 elif escolha == "Análise":
